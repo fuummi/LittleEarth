@@ -1,14 +1,36 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import "./Main.less";
+import { useDebounce } from "../../utils/useDebounce";
+import { useRecoilValue } from "recoil";
+import { dateState } from "../../utils/Recoil";
+import datemanger, { time } from "../../utils/datemanger";
+import { Select, DatePicker, Button } from "@arco-design/web-react";
 
 import * as THREE from "three";
 import { GUI } from "three/examples/jsm/libs/lil-gui.module.min";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { AxesHelper } from "three/src/helpers/AxesHelper.js";
 export default function Main() {
+    const [speed, setSpeed] = useState({ value: 0.1 });
     const lineControl = useRef();
     const cameraControl = useRef();
     const spinControl = useRef();
+
+    const defaultValue = new Date();
+    const [value, setValue] = useState(defaultValue);
+    // let value = defaultValue;
+    let angle = 0;
+    const [utcOffset, setUtcOffset] = useState(0);
+    const [timezone, setTimezone] = useState("Asia/Shanghai");
+    const zoneList = ["America/Los_Angeles", "Europe/London", "Africa/Cairo", "Asia/Shanghai"];
+
+    let date = {
+        y: defaultValue.getFullYear(),
+        M: defaultValue.getMonth() + 1,
+        d: defaultValue.getDay(),
+        h: defaultValue.getHours(),
+        m: defaultValue.getMinutes(),
+    };
 
     const scene = new THREE.Scene();
     const width = window.innerWidth;
@@ -31,6 +53,7 @@ export default function Main() {
     const earth = new THREE.Mesh(earthGeometry, earthMaterial);
 
     // var earthgroup = new THREE.Group().add(earth);
+    earth.rotateY(15.3);
     scene.add(earth);
 
     //赤道
@@ -141,7 +164,7 @@ export default function Main() {
     scene.add(directPoint);
 
     const point = new THREE.DirectionalLight(0xdddddd, 2);
-    point.position.set(200, 0, 0);
+    point.position.set(400, 0, 0);
     scene.add(point);
 
     const ambient = new THREE.AmbientLight(0x222222);
@@ -159,21 +182,39 @@ export default function Main() {
     renderer.setClearColor(0x000000, 1);
 
     let speedObj = {
-        speed: 0.1,
+        speed: (Math.PI / 360) * (23 / (40 / 0.001)),
+        rotae: 0.001,
     };
+
+    const obj = {
+        speed: (Math.PI / 360) * (23 / (40 / 0.1)),
+        rotae: 0.001,
+        follow: true,
+    };
+
     let deg = 0;
-    const ondeDeg = (Math.PI / 360) * (23 / (40 / speedObj.speed));
+
     function up() {
-        point.position.y += speedObj.speed;
-        terminatorGeometry.rotateZ((Math.PI / 360) * (23 / (40 / speedObj.speed)));
-        directPointGeometry.rotateZ((Math.PI / 360) * (23 / (40 / speedObj.speed)));
-        deg += (Math.PI / 360) * (23 / (40 / speedObj.speed));
+        point.position.y += speedObj.speed * 400;
+        terminatorGeometry.rotateZ(speedObj.speed);
+        directPointGeometry.rotateZ(speedObj.speed);
+        deg += speedObj.speed;
+        if (obj.follow) {
+            earth.rotateY(speedObj.speed * 1455.7);
+        } else {
+            earth.rotateY(speedObj.rotae);
+        }
     }
     function down() {
-        point.position.y -= speedObj.speed;
-        terminatorGeometry.rotateZ(-(Math.PI / 360) * (23 / (40 / speedObj.speed)));
-        directPointGeometry.rotateZ(-(Math.PI / 360) * (23 / (40 / speedObj.speed)));
-        deg -= (Math.PI / 360) * (23 / (40 / speedObj.speed));
+        point.position.y -= speedObj.speed * 400;
+        terminatorGeometry.rotateZ(-speedObj.speed);
+        directPointGeometry.rotateZ(-speedObj.speed);
+        deg -= speedObj.speed;
+        if (obj.follow) {
+            earth.rotateY(speedObj.speed * 1440.4);
+        } else {
+            earth.rotateY(speedObj.rotae);
+        }
     }
     function cameraUp() {
         camera.position.y = deg * 400;
@@ -185,18 +226,21 @@ export default function Main() {
     }
     let nowFn = [up];
     let counter = 0;
+    let T0 = new Date();
     function render() {
+        let T1 = new Date();
+        let t = T1 - T0;
+        T0 = T1;
         renderer.render(scene, camera);
-        earth.rotateY(Math.PI / 2000);
-        if (point.position.y <= -80) {
+        if (point.position.y <= -160) {
             if (nowFn.length == 1) nowFn = [up];
-            else nowFn = [up, cameraUp];
-        } else if (point.position.y >= 80) {
+            else if (nowFn.length == 2) nowFn = [up, cameraUp];
+        } else if (point.position.y >= 160) {
             if (nowFn.length == 1) nowFn = [down];
-            else nowFn = [down, cameraDown];
+            else if (nowFn.length == 2) nowFn = [down, cameraDown];
         }
         nowFn.forEach((element) => {
-            element();
+            element(t*100);
         });
         requestAnimationFrame(render);
     }
@@ -257,8 +301,14 @@ export default function Main() {
             controls.reset();
             cameraControl.current.querySelectorAll("input").forEach((element, index) => {
                 element.checked = false;
+                controls.enabled = true;
                 if (index == 2) {
                     element.checked = true;
+                }
+                if (nowFn[0] == up) {
+                    nowFn = [up];
+                } else {
+                    nowFn = [down];
                 }
             });
         },
@@ -305,14 +355,28 @@ export default function Main() {
     });
 
     const spinGui = new GUI({
-        name: "地球转速",
+        name: "速度调整",
         width: 300,
         autoPlace: false,
         open: false,
-        title: "地球转速",
+        title: "速度调整",
     });
 
-    spinGui.add(speedObj, "speed",0,1).name("地球转速");
+    spinGui.add(obj, "speed", 0.0000001, 0.5).name("太阳直射点变化速度"); //用gui改变了转速，在回调里设置状态
+    spinGui.onFinishChange(function (value) {
+        if (value.property == "speed") {
+            speedObj.speed = (Math.PI / 360) * (23 / (40 / value.value));
+        }
+        if (value.property == "rotae") {
+            speedObj.rotae = value.value;
+        }
+        if (value.property == "follow") {
+            speedObj.rotae = value.value;
+        }
+    });
+
+    spinGui.add(obj, "follow").name("地球转速跟随太阳直射点");
+    spinGui.add(obj, "rotae", 0.0000001, 0.5).name("地球转速");
 
     useEffect(() => {
         document.querySelector("#canvas").appendChild(renderer.domElement);
@@ -320,12 +384,73 @@ export default function Main() {
         cameraControl.current.appendChild(cameraGui.domElement);
         spinControl.current.appendChild(spinGui.domElement);
     }, []);
+
+    useEffect(() => {
+        angle = datemanger(date);
+    }, []);
+    let counter1 = 0;
+
+    function timeChange(v, vd) {
+        setValue(vd && vd.toDate());
+        date = vd;
+    }
+    function passDate() {
+        if (date.$M !== undefined) {
+            const { $y, $M, $D, $H, $m } = date;
+            angle = datemanger({
+                y: $y,
+                M: $M + 1,
+                d: $D,
+                h: $H,
+                m: $m,
+            });
+        } else {
+            angle = datemanger(date);
+        }
+        console.log(angle);
+        nowFn = [];
+        const one = Math.PI / 180;
+        point.position.set(400, 0, 0);
+        point.position.y += Math.sin(one * angle) * 400;
+        terminatorGeometry.rotateZ(one * angle);
+        directPointGeometry.rotateZ(one * angle);
+        let earthdeg = time(date) * one;
+        console.log(earthdeg);
+        earth.rotateY(earthdeg);
+        // nowFn = [
+        //     (t) => {
+        //         earth.rotateY((((Math.Pi / 180) * 4) / 60) * t);
+        //     },
+        // ];
+    }
+
     return (
         <>
             <div id="canvas"></div>
             <div ref={cameraControl} className="cameraControl"></div>
             <div ref={lineControl} className="lineControl"></div>
             <div ref={spinControl} className="spinControl"></div>
+            <div className="right">
+                <div className="timezonepicker">
+                    <Select
+                        defaultValue={timezone}
+                        options={zoneList}
+                        onChange={(tz) => setTimezone(tz)}
+                        triggerProps={{
+                            autoAlignPopupWidth: true,
+                            position: "bl",
+                        }}
+                    />
+                </div>
+                <div className="datepicker">
+                    <DatePicker showTime value={value} timezone={timezone} onChange={timeChange} />
+                </div>
+                <div className="btn">
+                    <Button type="primary" onClick={passDate}>
+                        该时间状态
+                    </Button>
+                </div>
+            </div>
         </>
     );
 }

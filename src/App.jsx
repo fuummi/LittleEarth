@@ -1,14 +1,14 @@
-import { useState } from 'react'
-import './App.css'
-import Main from './components/Main/Main'
+import { useState } from "react";
+import "./App.css";
+import Main from "./components/Main/Main";
+import "@arco-design/web-react/dist/css/arco.css";
+import { RecoilRoot } from "recoil";
 function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <div className="App">
-      <Main></Main>
-    </div>
-  )
+    return (
+        <RecoilRoot>
+            <Main></Main>
+        </RecoilRoot>
+    );
 }
 
-export default App
+export default App;
