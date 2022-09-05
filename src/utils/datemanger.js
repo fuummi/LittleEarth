@@ -43,5 +43,8 @@ export default function (dateObj) {
 }
 
 export function time(dateObj) {
-    return (dateObj.h * 60 + dateObj.m) * 4;
+    if (dateObj.$M !== undefined) {
+        return (dateObj.$H * 60 + dateObj.$m - 360) / 4;
+    }
+    return (dateObj.h * 60 + dateObj.m - 360) / 4;
 }

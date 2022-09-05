@@ -18,19 +18,19 @@ export default function Main() {
 
     const defaultValue = new Date();
     const [value, setValue] = useState(defaultValue);
+    const [date, setDate] = useState({
+        y: defaultValue.getFullYear(),
+        M: defaultValue.getMonth() + 1,
+        d: defaultValue.getDate(),
+        h: defaultValue.getHours(),
+        m: defaultValue.getMinutes(),
+    });
+    const [flag, setFlag] = useState(true);
     // let value = defaultValue;
     let angle = 0;
     const [utcOffset, setUtcOffset] = useState(0);
     const [timezone, setTimezone] = useState("Asia/Shanghai");
     const zoneList = ["America/Los_Angeles", "Europe/London", "Africa/Cairo", "Asia/Shanghai"];
-
-    let date = {
-        y: defaultValue.getFullYear(),
-        M: defaultValue.getMonth() + 1,
-        d: defaultValue.getDay(),
-        h: defaultValue.getHours(),
-        m: defaultValue.getMinutes(),
-    };
 
     const scene = new THREE.Scene();
     const width = window.innerWidth;
@@ -51,10 +51,15 @@ export default function Main() {
         specularMap: specular,
     });
     const earth = new THREE.Mesh(earthGeometry, earthMaterial);
-
-    // var earthgroup = new THREE.Group().add(earth);
     earth.rotateY(15.3);
-    scene.add(earth);
+    // var earthgroup = new THREE.Group().add(earth);
+
+    var helperlineGeometry = new THREE.BoxGeometry(0, 0, 10);
+    var helperlineMaterial = new THREE.LineBasicMaterial({
+        color: 0xff0000,
+    });
+    var helperline = new THREE.Line(helperlineGeometry, helperlineMaterial);
+    helperlineGeometry.translate(0, 0, 5);
 
     //赤道
     const equatorGeometry = new THREE.BufferGeometry();
@@ -68,7 +73,6 @@ export default function Main() {
     equatorGeometry.rotateX(Math.PI / 2);
     const equator = new THREE.Line(equatorGeometry, equatorMaterial);
     // var equatorgroup = new THREE.Group().add(equator);
-    scene.add(equator);
 
     //回归线
     const tropicGeometry = new THREE.BufferGeometry();
@@ -85,7 +89,6 @@ export default function Main() {
     tropicGeometry.translate(0, 39.768, 0);
     const northTropic = new THREE.Line(tropicGeometry, tropicMaterial);
     northTropic.computeLineDistances();
-    scene.add(northTropic);
 
     const tropicGeometry2 = new THREE.BufferGeometry();
     const tropicArc2 = new THREE.ArcCurve(0, 0, 92, 0, 2 * Math.PI, true);
@@ -101,7 +104,6 @@ export default function Main() {
     tropicGeometry2.translate(0, -39.768, 0);
     const southTropic = new THREE.Line(tropicGeometry2, tropicMaterial2);
     southTropic.computeLineDistances();
-    scene.add(southTropic);
 
     //极圈
     const polarGeometry = new THREE.BufferGeometry();
@@ -118,8 +120,6 @@ export default function Main() {
     polarGeometry.rotateX(Math.PI / 2);
     polarGeometry.translate(0, 91.752, 0);
     northPolar.computeLineDistances();
-    // var northPolargroup = new THREE.Group().add(northPolar);
-    scene.add(northPolar);
 
     const polarGeometry2 = new THREE.BufferGeometry();
     const polarArc2 = new THREE.ArcCurve(0, 0, 40, 0, 2 * Math.PI, true);
@@ -135,8 +135,6 @@ export default function Main() {
     polarGeometry2.rotateX(Math.PI / 2);
     polarGeometry2.translate(0, -91.752, 0);
     southPolar.computeLineDistances();
-    // var northPolargroup = new THREE.Group().add(northPolar);
-    scene.add(southPolar);
 
     //晨昏线
     const terminatorGeometry = new THREE.BufferGeometry();
@@ -150,7 +148,6 @@ export default function Main() {
     terminatorGeometry.rotateX(Math.PI);
     terminatorGeometry.rotateY(Math.PI / 2);
     const terminator = new THREE.Line(terminatorGeometry, terminatorMaterial);
-    scene.add(terminator);
 
     //直射点
     var shape = new THREE.Shape();
@@ -165,10 +162,8 @@ export default function Main() {
 
     const point = new THREE.DirectionalLight(0xdddddd, 2);
     point.position.set(400, 0, 0);
-    scene.add(point);
 
     const ambient = new THREE.AmbientLight(0x222222);
-    scene.add(ambient);
 
     const axes = new AxesHelper(500);
     scene.add(axes);
@@ -186,10 +181,11 @@ export default function Main() {
         rotae: 0.001,
     };
 
-    const obj = {
+    let obj = {
         speed: (Math.PI / 360) * (23 / (40 / 0.1)),
         rotae: 0.001,
         follow: true,
+        flag: true,
     };
 
     let deg = 0;
@@ -200,8 +196,10 @@ export default function Main() {
         directPointGeometry.rotateZ(speedObj.speed);
         deg += speedObj.speed;
         if (obj.follow) {
+            helperlineGeometry.rotateY(speedObj.speed * 1455.7);
             earth.rotateY(speedObj.speed * 1455.7);
         } else {
+            helperlineGeometry.rotateY(speedObj.rotae);
             earth.rotateY(speedObj.rotae);
         }
     }
@@ -211,8 +209,10 @@ export default function Main() {
         directPointGeometry.rotateZ(-speedObj.speed);
         deg -= speedObj.speed;
         if (obj.follow) {
+            helperlineGeometry.rotateY(speedObj.speed * 1440.4);
             earth.rotateY(speedObj.speed * 1440.4);
         } else {
+            helperlineGeometry.rotateY(speedObj.rotae);
             earth.rotateY(speedObj.rotae);
         }
     }
@@ -224,10 +224,16 @@ export default function Main() {
         camera.position.y = deg * 400;
         camera.lookAt(0, 0, 0);
     }
-    let nowFn = [up];
+    let nowFn = [];
+    useEffect(() => {
+        nowFn = [up];
+    }, []);
     let counter = 0;
     let T0 = new Date();
     function render() {
+        if (!flag) {
+            return;
+        }
         let T1 = new Date();
         let t = T1 - T0;
         T0 = T1;
@@ -240,7 +246,7 @@ export default function Main() {
             else if (nowFn.length == 2) nowFn = [down, cameraDown];
         }
         nowFn.forEach((element) => {
-            element(t*100);
+            element(t * 100);
         });
         requestAnimationFrame(render);
     }
@@ -261,10 +267,14 @@ export default function Main() {
         open: false,
         title: "辅助线设置",
     });
-
+    const allGroup = new THREE.Group();
     var lineGroup = new THREE.Group();
     lineGroup.add(equator, northTropic, southTropic, northPolar, southPolar, terminator);
-    scene.add(lineGroup);
+
+    allGroup.add(lineGroup, earth, directPoint, point, ambient, axes,helperline);
+    useEffect(() => {
+        scene.add(allGroup);
+    }, []);
 
     const lineobj = {
         visible: true,
@@ -392,7 +402,7 @@ export default function Main() {
 
     function timeChange(v, vd) {
         setValue(vd && vd.toDate());
-        date = vd;
+        setDate(vd);
     }
     function passDate() {
         if (date.$M !== undefined) {
@@ -404,24 +414,38 @@ export default function Main() {
                 h: $H,
                 m: $m,
             });
+            console.log(angle);
         } else {
             angle = datemanger(date);
         }
-        console.log(angle);
+        console.log(nowFn);
+        setFlag(false);
         nowFn = [];
+        console.log(allGroup);
         const one = Math.PI / 180;
         point.position.set(400, 0, 0);
         point.position.y += Math.sin(one * angle) * 400;
-        terminatorGeometry.rotateZ(one * angle);
-        directPointGeometry.rotateZ(one * angle);
+        terminator.rotateZ(one * angle);
+        directPoint.rotateZ(one * angle);
         let earthdeg = time(date) * one;
-        console.log(earthdeg);
+        debugger
+        const { x, z } = helperlineGeometry.boundingSphere.center;
+        const deg = Math.atan(x / z);
+        if (x > 0 && z > 0) {
+            helperline.rotateY(-deg);
+            earth.rotateY(-deg);
+        } else if (x > 0 && z < 0) {
+            helperline.rotateY(-(Math.PI / 2 + (Math.PI / 2 + deg)));
+            earth.rotateY(-(Math.PI / 2 + (Math.PI / 2 + deg)));
+        } else if (x < 0 && z < 0) {
+            helperline.rotateY(-(deg + Math.PI));
+            earth.rotateY(-(deg + Math.PI));
+        } else if (x > 0 && z > 0) {
+            helperline.rotateY(-deg);
+            earth.rotateY(-deg);
+        }
+        console.log(date);
         earth.rotateY(earthdeg);
-        // nowFn = [
-        //     (t) => {
-        //         earth.rotateY((((Math.Pi / 180) * 4) / 60) * t);
-        //     },
-        // ];
     }
 
     return (
