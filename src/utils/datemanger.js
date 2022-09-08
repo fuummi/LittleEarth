@@ -1,50 +1,65 @@
 export default function (dateObj) {
     let data = 0;
-    switch (dateObj.M) {
-        case 1:
-            data = -21.25;
+    switch (dateObj.month) {
+        case "01":
+            data += -21.25;
+            data += dateObj.day * 0.25;
             break;
-        case 2:
-            data = -13.5;
+        case "02":
+            data += -13.5;
+            data += dateObj.day * 0.25;
             break;
-        case 3:
-            data = -6.5;
+        case "03":
+            data += -6.5;
+            data += dateObj.day * 0.25;
             break;
-        case 4:
-            data = 1.25;
+        case "04":
+            data += 1.25;
+            data += dateObj.day * 0.25;
             break;
-        case 5:
-            data = 8.75;
+        case "05":
+            data += 8.75;
+            data += dateObj.day * 0.25;
             break;
-        case 6:
-            data = 16.5;
+        case "06":
+            data += 16.5;
+            if (parseInt(dateObj.day, 10)<=22) {
+                data += dateObj.day * 0.25;
+            }else{
+                data -= dateObj.day * 0.25;
+            }
             break;
-        case 7:
-            data = 21.25;
+        case "07":
+            data += 21.25;
+            data -= dateObj.day * 0.25;
             break;
-        case 8:
-            data = 13.75;
+        case "08":
+            data += 13.75;
+            data -= dateObj.day * 0.25;
             break;
-        case 9:
-            data = 6;
+        case "09":
+            data += 6;
+            data -= dateObj.day * 0.25;
             break;
-        case 10:
-            data = -2.25;
+        case "10":
+            data += -2.25;
+            data -= dateObj.day * 0.25;
             break;
-        case 11:
-            data = -10;
+        case "11":
+            data += -10;
+            data -= dateObj.day * 0.25;
             break;
-        case 12:
-            data = -17.5;
+        case "12":
+            data += -17.5;
+            if (parseInt(dateObj.day, 10)<=23) {
+                data += dateObj.day * 0.25;
+            }else{
+                data -= dateObj.day * 0.25;
+            }
             break;
     }
-    data += dateObj.d * 0.25;
     return data;
 }
-
 export function time(dateObj) {
-    if (dateObj.$M !== undefined) {
-        return (dateObj.$H * 60 + dateObj.$m - 360) / 4;
-    }
-    return (dateObj.h * 60 + dateObj.m - 360) / 4;
+    return (parseInt(dateObj.hour, 10) * 60 + parseInt(dateObj.minute, 10) - 360) / 4;
 }
