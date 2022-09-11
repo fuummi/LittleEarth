@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import "./Main.less";
-import { useDebounce } from "../../utils/useDebounce";
-import datemanger, { time } from "../../utils/datemanger";
-import { Select, DatePicker, Button } from "@arco-design/web-react";
+import { useThrottle } from "../../utils/useDebounce";
+import datemanger, { time, lunartime } from "../../utils/datemanger";
 
 import * as THREE from "three";
 import { GUI } from "three/examples/jsm/libs/lil-gui.module.min";
@@ -19,6 +18,7 @@ export default function Main1() {
     const lineControl = useRef();
     const cameraControl = useRef();
     const spinControl = useRef();
+    const btn2 = useRef();
     const body = useRef();
     const raf = useRef();
     const ambient = useRef(new THREE.AmbientLight(0x3333333)).current;
@@ -35,7 +35,12 @@ export default function Main1() {
     const terminatorGeometry = useRef();
     const directPointGeometry = useRef();
     const helperlineGeometry = useRef();
+    const trackrArcPoint = useRef();
     const earth = useRef();
+    const moon = useRef();
+    const mixer = useRef();
+    const AnimationAction = useRef();
+    const clip = useRef();
 
     let deg = useRef(0).current;
 
@@ -51,7 +56,7 @@ export default function Main1() {
         flag: true,
     };
 
-    const up = useCallback(() => {
+    const up = () => {
         point.position.y += speedObj.speed * 400;
         terminatorGeometry.current.rotateZ(speedObj.speed);
         directPointGeometry.current.rotateZ(speedObj.speed);
@@ -63,8 +68,8 @@ export default function Main1() {
             helperlineGeometry.current.rotateY(speedObj.rotae);
             earth.current.rotateY(speedObj.rotae);
         }
-    }, []);
-    const down = useCallback(() => {
+    };
+    const down = () => {
         point.position.y -= speedObj.speed * 400;
         terminatorGeometry.current.rotateZ(-speedObj.speed);
         directPointGeometry.current.rotateZ(-speedObj.speed);
@@ -76,7 +81,7 @@ export default function Main1() {
             helperlineGeometry.current.rotateY(speedObj.rotae);
             earth.current.rotateY(speedObj.rotae);
         }
-    }, []);
+    };
     function cameraUp() {
         camera.position.y = deg * 400;
         camera.lookAt(0, 0, 0);
@@ -90,7 +95,9 @@ export default function Main1() {
     let nowFn = [up];
 
     let T0 = new Date();
-    const render = useCallback(() => {
+    var clock = new THREE.Clock();
+    let i = 0;
+    const render = () => {
         renderer.render(scene, camera);
         let T1 = new Date();
         let t = T1 - T0;
@@ -107,21 +114,24 @@ export default function Main1() {
             element(t * 100);
         });
         raf.current = requestAnimationFrame(() => render(t));
-    }, [renderer]);
+        if (mixer.current && moon.current.geometry !== undefined) {
+            mixer.current.update(clock.getDelta());
+        }
+    };
 
-    const init = useCallback(() => {
+    const init = () => {
         renderer.setSize(width, height);
         renderer.setClearColor(0x000000, 1);
         camera.aspect = width / height;
         camera.fov = 60;
         camera.near = 1;
-        camera.far = 2000;
-        camera.position.set(400, 0, 400);
+        camera.far = 5000;
+        camera.position.set(0, 2000, 0);
         camera.lookAt(0, 0, 0);
         camera.updateProjectionMatrix();
-    }, [render, body]);
+    };
 
-    const createEarth = useCallback(() => {
+    const createEarth = () => {
         const earthGeometry = new THREE.SphereGeometry(100, 40, 40);
         const textureLoader = new THREE.TextureLoader();
         const map = textureLoader.load("/src/assets/Earth.jpg");
@@ -251,32 +261,64 @@ export default function Main1() {
         const directPoint = new THREE.Line(directPointGeometry.current, directPointMaterial);
         scene.add(directPoint);
 
+        //星星
         var starGeometry = new THREE.BufferGeometry();
-        let tempArr1 = []
-        let tempArr2 = []
-        let flag = true
+        let tempArr1 = [];
+        let tempArr2 = [];
+        let flag = true;
         for (let i = 0; i < 900; i++) {
-            let position = flag?Math.random()*1000:Math.random()*1000*-1
-            tempArr1.push(position)
-            tempArr2.push(1)
-            flag = (parseInt(Math.random()*100,10)%2 == 0)
+            let position = flag ? Math.random() * 1000 : Math.random() * 1000 * -1;
+            tempArr1.push(position);
+            tempArr2.push(1);
+            flag = parseInt(Math.random() * 100, 10) % 2 == 0;
         }
         var starVertices = new Float32Array(tempArr1);
         var starColors = new Float32Array(tempArr2);
-
         var starAttribue = new THREE.BufferAttribute(starVertices, 3);
-
         starGeometry.attributes.position = starAttribue;
-
-
         starGeometry.attributes.color = new THREE.BufferAttribute(starColors, 3);
-
         var starMaterial = new THREE.PointsMaterial({
             vertexColors: THREE.VertexColors,
             size: 2,
         });
-        var starPoints = new THREE.Points(starGeometry,starMaterial);
+        var starPoints = new THREE.Points(starGeometry, starMaterial);
         scene.add(starPoints);
+
+        //月球主体
+        const moonGeometry = new THREE.SphereGeometry(27.273, 40, 40);
+        const textureLoader2 = new THREE.TextureLoader();
+        const moonMap = textureLoader.load("/src/assets/moon.png");
+        const moonMaterial = new THREE.MeshPhongMaterial({
+            color: 0xffffff,
+            map: moonMap,
+        });
+        moon.current = new THREE.Mesh(moonGeometry, moonMaterial);
+        // moonGeometry.translate(0, 0, 109.7);
+        scene.add(moon.current);
+
+        //月球轨道
+        const trackGeometry = new THREE.BufferGeometry();
+        const trackrArc = new THREE.EllipseCurve(0, 0, 1000, 998.439, 0, 2 * Math.PI, false, 0);
+        const tempArr3 = trackrArc.getPoints(100);
+        const tempArr4 = [];
+        let y = 0;
+        for (let i = 0; i <= 100; i++) {
+            if (i <= 50) {
+                y += 3.5578;
+            } else {
+                y -= 3.5578;
+            }
+            tempArr4.push(new THREE.Vector3(tempArr3[i].x, 0, tempArr3[i].y));
+        }
+        const tracka = new THREE.CatmullRomCurve3(tempArr4);
+        trackrArcPoint.current = tracka.getPoints(100);
+        trackGeometry.setFromPoints(trackrArcPoint.current);
+        const trackMaterial = new THREE.LineBasicMaterial({
+            linewidth: 3,
+            color: 0xffffff,
+        });
+        const track = new THREE.Line(trackGeometry, trackMaterial);
+        scene.add(track);
 
         meshArr.current = [
             directPoint,
@@ -289,7 +331,9 @@ export default function Main1() {
             northPolar,
             southPolar,
             terminator,
-            starPoints
+            starPoints,
+            moon.current,
+            track,
         ];
         const lineGui = new GUI({
             name: "辅助线设置",
@@ -404,6 +448,7 @@ export default function Main1() {
         spinGui.onFinishChange(function (value) {
             if (value.property == "speed") {
                 speedObj.speed = (Math.PI / 360) * (23 / (40 / value.value));
+                AnimationAction.current.timeScale = value.value * 260;
             }
             if (value.property == "rotae") {
                 speedObj.rotae = value.value;
@@ -418,14 +463,42 @@ export default function Main1() {
         lineControl.current.appendChild(lineGui.domElement);
         cameraControl.current.appendChild(cameraGui.domElement);
         spinControl.current.appendChild(spinGui.domElement);
-    }, []);
+    };
 
-    const createLights = useCallback(() => {
+    const createLights = () => {
         point.position.set(400, 0, 0);
         scene.add(point);
         scene.add(ambient);
         scene.add(axes);
-    }, []);
+    };
+
+    let progress = 0;
+    const moonMove = useCallback(() => {
+        let arr = [];
+        var posArr = [];
+        var rotateArr = [];
+        const oneDeg = Math.PI / 50;
+        for (let i = 0; i < 101; i++) {
+            arr.push(i);
+            rotateArr.push(i * oneDeg);
+        }
+        var times = new Float32Array(arr);
+        moon.current.name = "moon";
+        trackrArcPoint.current.forEach((elem, index) => {
+            posArr.unshift(elem.x, elem.y, elem.z);
+        });
+        var values = new Float32Array(posArr);
+        var values2 = new Float32Array(rotateArr);
+        var posTrack = new THREE.KeyframeTrack(".position", times, values);
+        var rotae = new THREE.KeyframeTrack(".rotation[y]", times, values2);
+        let duration = 100;
+        clip.current = new THREE.AnimationClip("default", duration, [posTrack,rotae]);
+        mixer.current = new THREE.AnimationMixer(moon.current);
+
+        AnimationAction.current = mixer.current.clipAction(clip.current);
+        AnimationAction.current.timeScale = 0.26;
+        AnimationAction.current.play();
+    }, [speedObj.speed]);
 
     function remove(item) {
         if (item.type == "Group") {
@@ -445,7 +518,8 @@ export default function Main1() {
         createEarth();
         createLights();
         render();
-
+        moonMove();
+        btn2.current.disabled = true;
         return () => {
             meshArr.current.forEach((item) => {
                 remove(item);
@@ -486,7 +560,7 @@ export default function Main1() {
         let earthdeg = time(date) * one;
         const { x, z } = helperlineGeometry.current.boundingSphere.center;
         const deg = Math.atan(x / z);
-        console.log(deg);
+
         if (x > 0 && z > 0) {
             helperlineGeometry.current.rotateY(-deg);
             earth.current.rotateY(-deg);
@@ -502,6 +576,14 @@ export default function Main1() {
         }
         earth.current.rotateY(earthdeg);
         helperlineGeometry.current.rotateY(earthdeg);
+
+        const lunar = lunartime(date);
+        AnimationAction.current.paused = true;
+        AnimationAction.current.time = parseInt(100 * (lunar / 30), 10);
+        clip.current.duration = AnimationAction.time;
+        // AnimationAction.current.timeScale = 0.26;//?????
+        // AnimationAction.current.paused = false;
+        btn2.current.disabled = false;
         lastTime = value;
         nowFn = [
             (t) => {
@@ -509,6 +591,23 @@ export default function Main1() {
             },
         ];
     }
+
+    function lookMoon() {
+        console.log(111111111);
+        const value = datepicker.current.value;
+        const date = {
+            year: value.substring(0, 4),
+            month: value.substring(5, 7),
+            day: value.substring(8, 10),
+            hour: value.substring(11, 13),
+            minute: value.substring(14),
+        };
+        const deg = (Math.PI * 2) / (lunartime(date) / 30);
+        camera.position.set(110 * Math.sin(deg), 0, 110 * Math.cos(deg));
+        camera.lookAt(moon.current.position);
+        camera.updateProjectionMatrix();
+    }
+
     return (
         <>
             <div ref={body}></div>
@@ -518,6 +617,9 @@ export default function Main1() {
             <input type="datetime-local" className="datepicker" ref={datepicker}></input>
             <button className="btn" onClick={getTime}>
                 该时间状态
+            </button>
+            <button className="btn2" ref={btn2} onClick={lookMoon}>
+                该时间月相
             </button>
         </>
     );

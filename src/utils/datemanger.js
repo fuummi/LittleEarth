@@ -1,3 +1,5 @@
+import canlerdar from 'solarday2lunarday'
+
 export default function (dateObj) {
     let data = 0;
     switch (dateObj.month) {
@@ -60,6 +62,12 @@ export default function (dateObj) {
     }
     return data;
 }
+
 export function time(dateObj) {
     return (parseInt(dateObj.hour, 10) * 60 + parseInt(dateObj.minute, 10) - 360) / 4;
+}
+
+export function lunartime(dateObj) {
+    const result = canlerdar.solar2lunar(dateObj.year,dateObj.month,dateObj.day)
+    return result.lunarDay
 }
