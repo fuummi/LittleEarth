@@ -1,8 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import "./Main.less";
-import { useThrottle } from "../../utils/useDebounce";
 import datemanger, { time, lunartime } from "../../utils/datemanger";
-
+import "./Main.less";
 import * as THREE from "three";
 import { GUI } from "three/examples/jsm/libs/lil-gui.module.min";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
@@ -152,6 +150,7 @@ export default function Main1() {
         helperlineGeometry.current = new THREE.BoxGeometry(0, 0, 10);
         var helperlineMaterial = new THREE.LineBasicMaterial({
             color: 0xff0000,
+            visible:false
         });
         var helperline = new THREE.Line(helperlineGeometry.current, helperlineMaterial);
         helperline.name = "helperline";
@@ -337,7 +336,7 @@ export default function Main1() {
         ];
         const lineGui = new GUI({
             name: "辅助线设置",
-            width: 300,
+            width: 200,
             autoPlace: false,
             open: false,
             title: "辅助线设置",
@@ -369,7 +368,7 @@ export default function Main1() {
 
         const cameraGui = new GUI({
             name: "相机设置",
-            width: 300,
+            width: 200,
             autoPlace: false,
             open: false,
             title: "相机设置",
@@ -440,13 +439,13 @@ export default function Main1() {
 
         const spinGui = new GUI({
             name: "速度调整",
-            width: 300,
+            width: 200,
             autoPlace: false,
             open: false,
             title: "速度调整",
         });
 
-        spinGui.add(obj, "speed", 0.0000001, 0.5).name("太阳直射点变化速度(昼夜更替速度)"); //用gui改变了转速，在回调里设置状态
+        spinGui.add(obj, "speed", 0.0000001, 0.5).name("昼夜更替速度"); //用gui改变了转速，在回调里设置状态
         spinGui.onFinishChange(function (value) {
             if (value.property == "speed") {
                 speedObj.speed = (Math.PI / 360) * (23 / (40 / value.value));
@@ -498,7 +497,7 @@ export default function Main1() {
         mixer.current = new THREE.AnimationMixer(moon.current);
         AnimationAction.current = mixer.current.clipAction(clip.current);
         AnimationAction.current.timeScale = 0.26;
-        AnimationAction.current.loop = THREE.LoopRepeat;
+        AnimationAction.current.setLoop(THREE.LoopRepeat,Infinity)
         AnimationAction.current.play();
     }, [speedObj.speed]);
 
