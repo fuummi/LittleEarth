@@ -6,7 +6,7 @@ import datemanger, { time, lunartime } from "../../utils/datemanger";
 import * as THREE from "three";
 import { GUI } from "three/examples/jsm/libs/lil-gui.module.min";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import { AxesHelper } from "three/src/helpers/AxesHelper.js";
+// import { AxesHelper } from "three/src/helpers/AxesHelper.js";
 
 const width = window.innerWidth;
 const height = window.innerHeight;
@@ -19,11 +19,12 @@ export default function Main1() {
     const cameraControl = useRef();
     const spinControl = useRef();
     const btn2 = useRef();
+    const btn3 = useRef();
     const body = useRef();
     const raf = useRef();
     const ambient = useRef(new THREE.AmbientLight(0x3333333)).current;
     const point = useRef(new THREE.DirectionalLight(0xdddddd, 2)).current;
-    const axes = useRef(new AxesHelper(500)).current;
+    // const axes = useRef(new AxesHelper(500)).current;
     const renderer = useRef(new THREE.WebGLRenderer()).current;
     const scene = useRef(new THREE.Scene()).current;
     const camera = useRef(new THREE.PerspectiveCamera()).current;
@@ -267,7 +268,7 @@ export default function Main1() {
         let tempArr2 = [];
         let flag = true;
         for (let i = 0; i < 900; i++) {
-            let position = flag ? Math.random() * 1000 : Math.random() * 1000 * -1;
+            let position = flag ? Math.random() * 3000 : Math.random() * 3000 * -1;
             tempArr1.push(position);
             tempArr2.push(1);
             flag = parseInt(Math.random() * 100, 10) % 2 == 0;
@@ -314,7 +315,6 @@ export default function Main1() {
         trackrArcPoint.current = tracka.getPoints(100);
         trackGeometry.setFromPoints(trackrArcPoint.current);
         const trackMaterial = new THREE.LineBasicMaterial({
-            linewidth: 3,
             color: 0xffffff,
         });
         const track = new THREE.Line(trackGeometry, trackMaterial);
@@ -355,6 +355,7 @@ export default function Main1() {
         });
         function createControl(name, geometry, dash) {
             const lineFolder = lineGui.addFolder(`${name}`);
+            console.log(geometry.material);
             lineFolder.addColor(geometry.material, "color").name("颜色");
             lineFolder.add(geometry.material, "visible").name("显示");
         }
@@ -364,6 +365,7 @@ export default function Main1() {
         createControl("北极圈", northPolar, true);
         createControl("南极圈", southPolar, true);
         createControl("晨昏线", terminator, false);
+        createControl("月球轨道", track, false);
 
         const cameraGui = new GUI({
             name: "相机设置",
@@ -378,7 +380,7 @@ export default function Main1() {
             free: true,
             reset: function () {
                 controls.reset();
-                camera.position.set(400, 0, 400);
+                camera.position.set(0, 2000, 0);
                 camera.lookAt(0, 0, 0);
                 cameraControl.current.querySelectorAll("input").forEach((element, index) => {
                     element.checked = false;
@@ -444,7 +446,7 @@ export default function Main1() {
             title: "速度调整",
         });
 
-        spinGui.add(obj, "speed", 0.0000001, 0.5).name("太阳直射点变化速度"); //用gui改变了转速，在回调里设置状态
+        spinGui.add(obj, "speed", 0.0000001, 0.5).name("太阳直射点变化速度(昼夜更替速度)"); //用gui改变了转速，在回调里设置状态
         spinGui.onFinishChange(function (value) {
             if (value.property == "speed") {
                 speedObj.speed = (Math.PI / 360) * (23 / (40 / value.value));
@@ -469,7 +471,7 @@ export default function Main1() {
         point.position.set(400, 0, 0);
         scene.add(point);
         scene.add(ambient);
-        scene.add(axes);
+        // scene.add(axes);
     };
 
     let progress = 0;
@@ -492,11 +494,11 @@ export default function Main1() {
         var posTrack = new THREE.KeyframeTrack(".position", times, values);
         var rotae = new THREE.KeyframeTrack(".rotation[y]", times, values2);
         let duration = 100;
-        clip.current = new THREE.AnimationClip("default", duration, [posTrack,rotae]);
+        clip.current = new THREE.AnimationClip("default", duration, [posTrack, rotae]);
         mixer.current = new THREE.AnimationMixer(moon.current);
-
         AnimationAction.current = mixer.current.clipAction(clip.current);
         AnimationAction.current.timeScale = 0.26;
+        AnimationAction.current.loop = THREE.LoopRepeat;
         AnimationAction.current.play();
     }, [speedObj.speed]);
 
@@ -520,6 +522,7 @@ export default function Main1() {
         render();
         moonMove();
         btn2.current.disabled = true;
+        btn3.current.disabled = true;
         return () => {
             meshArr.current.forEach((item) => {
                 remove(item);
@@ -528,16 +531,18 @@ export default function Main1() {
             renderer.dispose();
             scene.remove(point);
             scene.remove(ambient);
-            scene.remove(axes);
+            // scene.remove(axes);
             lineControl.current.innerHTML = "";
             cameraControl.current.innerHTML = "";
             spinControl.current.innerHTML = "";
         };
     }, []);
     let lastTime;
+    let preFn;
     function getTime() {
         const value = datepicker.current.value;
-        if (lastTime == value) {
+        if (lastTime == value || value == "") {
+            alert("时间不能为空或与上次相同");
             return;
         }
         const date = {
@@ -548,6 +553,7 @@ export default function Main1() {
             minute: value.substring(14),
         };
         let angle = datemanger(date);
+        preFn = nowFn;
         nowFn = [];
         const one = Math.PI / 180;
         point.position.set(400, 0, 0);
@@ -581,9 +587,10 @@ export default function Main1() {
         AnimationAction.current.paused = true;
         AnimationAction.current.time = parseInt(100 * (lunar / 30), 10);
         clip.current.duration = AnimationAction.time;
-        // AnimationAction.current.timeScale = 0.26;//?????
-        // AnimationAction.current.paused = false;
+        camera.position.set(400, 0, 400);
+        camera.lookAt(0, 0, 0);
         btn2.current.disabled = false;
+        btn3.current.disabled = false;
         lastTime = value;
         nowFn = [
             (t) => {
@@ -593,7 +600,6 @@ export default function Main1() {
     }
 
     function lookMoon() {
-        console.log(111111111);
         const value = datepicker.current.value;
         const date = {
             year: value.substring(0, 4),
@@ -602,10 +608,22 @@ export default function Main1() {
             hour: value.substring(11, 13),
             minute: value.substring(14),
         };
-        const deg = (Math.PI * 2) / (lunartime(date) / 30);
+        const lunar = lunartime(date);
+        const deg = Math.PI * 2 * (lunar / 30);
+        console.log(110 * Math.sin(deg), 0, 110 * Math.cos(deg));
         camera.position.set(110 * Math.sin(deg), 0, 110 * Math.cos(deg));
         camera.lookAt(moon.current.position);
         camera.updateProjectionMatrix();
+    }
+
+    function disablebtn() {
+        btn2.current.disabled = true;
+    }
+    function resetSetting() {
+        btn2.current.disabled = true;
+        btn3.current.disabled = true;
+        AnimationAction.current.paused = false;
+        nowFn = preFn;
     }
 
     return (
@@ -614,13 +632,22 @@ export default function Main1() {
             <div ref={cameraControl} className="cameraControl"></div>
             <div ref={lineControl} className="lineControl"></div>
             <div ref={spinControl} className="spinControl"></div>
-            <input type="datetime-local" className="datepicker" ref={datepicker}></input>
-            <button className="btn" onClick={getTime}>
-                该时间状态
-            </button>
-            <button className="btn2" ref={btn2} onClick={lookMoon}>
-                该时间月相
-            </button>
+            <div className="right">
+                <input
+                    type="datetime-local"
+                    className="datepicker"
+                    ref={datepicker}
+                    onChange={disablebtn}></input>
+                <button className="btn" onClick={getTime}>
+                    该时间状态
+                </button>
+                <button className="btn2" ref={btn2} onClick={lookMoon}>
+                    该时间月相
+                </button>
+                <button className="btn3" ref={btn3} onClick={resetSetting}>
+                    速度恢复自由
+                </button>
+            </div>
         </>
     );
 }
